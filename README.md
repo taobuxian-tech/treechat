@@ -1,4 +1,4 @@
-# TreeChat 🌲
+# TreeMind 🌲
 
 基于 DeepSeek API 的树状分支对话网页应用。
 
