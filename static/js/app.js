@@ -1,5 +1,5 @@
 /**
- * TreeChat - 前端核心逻辑 (DeepSeek 风格)
+ * TreeMind - 前端核心逻辑 (DeepSeek 风格)
  */
 
 // ============================
@@ -568,7 +568,7 @@ function scrollToBottom() {
 
 function updateChatTitle() {
   const conv = getActiveConversation();
-  els.chatTitle.textContent = conv ? (conv.title || '新对话') : 'TreeChat';
+  els.chatTitle.textContent = conv ? (conv.title || '新对话') : 'TreeMind';
 }
 
 function updateSendButton() {
@@ -670,7 +670,7 @@ function deleteConversation(convId) {
   } else {
     els.messageList.innerHTML = '';
     els.welcomeScreen.style.display = 'flex';
-    els.chatTitle.textContent = 'TreeChat';
+    els.chatTitle.textContent = 'TreeMind';
     setInputEnabled(false);
   }
   updateSendButton();
@@ -1330,7 +1330,7 @@ function init() {
   if (convs.length === 0) {
     renderSidebar();
     els.welcomeScreen.style.display = 'flex';
-    els.chatTitle.textContent = 'TreeChat';
+    els.chatTitle.textContent = 'TreeMind';
     updateSendButton();
   } else {
     if (!state.activeConvId || !state.conversations[state.activeConvId]) {
