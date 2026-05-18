@@ -148,7 +148,7 @@ def share():
         lines.append(f'{role}: {content}\n')
 
     share_text = '\n'.join(lines)
-    share_text += '\n—— 来自 TreeChat'
+    share_text += '\n—— 来自 TreeMind'
 
     return {
         'text': share_text,
