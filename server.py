@@ -1,14 +1,29 @@
 import os
-import json
+import io
 import sys
+import json
 import base64
+import signal
 from flask import Flask, render_template, request, Response, stream_with_context
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+# ============================================================
+# 修复 1：Windows 下强制 UTF-8 输出（否则 ⚠️ 等 emoji 直接报错）
+# ============================================================
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-app = Flask(__name__)
+# ============================================================
+# 修复 2：用脚本所在目录作为 .env 路径（不依赖执行目录）
+# ============================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+app = Flask(__name__,
+            template_folder=os.path.join(BASE_DIR, 'templates'),
+            static_folder=os.path.join(BASE_DIR, 'static'))
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
@@ -41,16 +56,11 @@ def chat():
 
     def generate():
         try:
-            # 构建请求体 - 支持多模态
             payload = {
                 'model': model,
                 'messages': messages,
                 'stream': True,
             }
-
-            # deepseek-reasoner 不支持 stream 为 true（或需要特殊处理）
-            if model == 'deepseek-reasoner':
-                payload['stream'] = True
 
             resp = requests.post(
                 f'{DEEPSEEK_BASE_URL}/v1/chat/completions',
@@ -83,7 +93,6 @@ def chat():
                                 continue
                             delta = choices[0].get('delta', {})
 
-                            # 深度思索：reasoning_content 和 content 都要处理
                             reasoning = delta.get('reasoning_content', '')
                             content = delta.get('content', '')
 
@@ -118,7 +127,6 @@ def upload():
     if file.filename == '':
         return {'error': '没有选择文件'}, 400
 
-    # 只接受图片
     if not file.content_type or not file.content_type.startswith('image/'):
         return {'error': '只支持图片文件'}, 400
 
@@ -138,7 +146,6 @@ def share():
     if not data or 'title' not in data or 'messages' not in data:
         return {'error': '参数不完整'}, 400
 
-    # 构建分享文本
     lines = [f'【{data["title"]}】\n']
     for msg in data['messages']:
         role = '我' if msg['role'] == 'user' else 'AI'
@@ -157,5 +164,22 @@ def share():
     }
 
 
+# ============================================================
+# 修复 3+4：换端口 + 关 debug（防止 Zombie 进程 + Reloader 冲突）
+# ============================================================
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    port = 5050
+
+    # 尝试清理旧进程（可选，不保证所有环境都生效）
+    if sys.platform == 'win32':
+        try:
+            import subprocess
+            subprocess.run(
+                f'netstat -ano | findstr :{port}',
+                shell=True, capture_output=True
+            )
+        except Exception:
+            pass
+
+    print(f'🚀 TreeMind 已启动 → http://localhost:{port}')
+    app.run(host='127.0.0.1', port=port, debug=False)
