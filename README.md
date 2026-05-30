@@ -41,7 +41,7 @@ pip install flask requests python-dotenv
 python server.py
 ```
 
-浏览器打开 http://localhost:5001 即可使用。
+浏览器打开 http://localhost:5050 即可使用。
 
 ## 技术栈
 
