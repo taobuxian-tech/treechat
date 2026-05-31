@@ -4,17 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TreeMind</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=8">
+  <link rel="stylesheet" href="/static/css/style.css?v=10">
 
   <!-- MathJax 3 -->
   <script>
     MathJax = {
       tex: {
-        inlineMath: [['\(', '\)']],
-        displayMath: [['\[', '\]']],
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']],
       },
       options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
-      startup: { typeset: false },
+      startup: {
+        typeset: false,
+        ready() {
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(() => {
+            document.dispatchEvent(new Event('MathJaxLoaded'));
+          });
+        }
+      },
     };
   </script>
   <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -164,6 +172,6 @@
     </div>
   </div>
 
-  <script src="/static/js/app.js?v=8"></script>
+  <script src="/static/js/app.js?v=11"></script>
 </body>
 </html>
