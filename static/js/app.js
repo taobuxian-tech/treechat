@@ -458,6 +458,23 @@ function renderMessages() {
   });
 
   scrollToBottom();
+
+  // 数学公式渲染（MathJax 异步加载，需要等待）
+  renderMath();
+}
+
+/** 安全地触发 MathJax 排版（处理异步加载） */
+function renderMath() {
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([els.messageList]).catch(() => {});
+  } else {
+    // MathJax 还没加载好，监听加载完成后渲染
+    document.addEventListener('MathJaxLoaded', () => {
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([els.messageList]).catch(() => {});
+      }
+    }, { once: true });
+  }
 }
 
 function handleRegenerate(conv, msgId) {
@@ -507,13 +524,88 @@ function forkWithText(text, convId) {
 function renderContent(text) {
   if (!text) return '';
   let html = escapeHtml(text);
-  // Code blocks
+  const blocks = [];
+
+  // === Protect special multi-line blocks ===
+
+  // 1. Code blocks
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
-    return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
+    const idx = blocks.length;
+    blocks.push(`<pre><code>${escapeHtml(code.trim())}</code></pre>`);
+    return `%%B${idx}%%`;
   });
+
+  // 2. Tables (skip alignment separators like |:---|---:|)
+  html = html.replace(/((?:^\|.+\|\n)+)/gm, (m) => {
+    const idx = blocks.length;
+    const rows = m.trim().split('\n').filter(r => !/^\|[\s:-]+\|$/.test(r));
+    if (rows.length === 0) return '';
+    let tableHtml = '<table>';
+    rows.forEach((row, ri) => {
+      const cells = row.split('|').filter(c => c.trim());
+      const tag = ri === 0 ? 'th' : 'td';
+      tableHtml += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    });
+    tableHtml += '</table>';
+    blocks.push(tableHtml);
+    return `%%B${idx}%%`;
+  });
+
+  // 3. Ordered lists
+  html = html.replace(/(?:^|\n\n)((?:\d+\.\s.+(?:\n|$))+)/gm, (m) => {
+    const idx = blocks.length;
+    const items = m.trim().split('\n').filter(l => /^\d+\./.test(l));
+    if (items.length === 0) return m;
+    const listHtml = '<ol>' + items.map(l => `<li>${l.replace(/^\d+\.\s+/, '')}</li>`).join('') + '</ol>';
+    blocks.push(listHtml);
+    return m.startsWith('\n\n') ? '\n\n%%B' + idx + '%%' : '%%B' + idx + '%%';
+  });
+
+  // 4. Unordered lists
+  html = html.replace(/(?:^|\n\n)((?:(?:[-*])\s.+(?:\n|$))+)/gm, (m) => {
+    const idx = blocks.length;
+    const items = m.trim().split('\n').filter(l => /^[-*]\s/.test(l));
+    if (items.length === 0) return m;
+    const listHtml = '<ul>' + items.map(l => `<li>${l.replace(/^[-*]\s+/, '')}</li>`).join('') + '</ul>';
+    blocks.push(listHtml);
+    return m.startsWith('\n\n') ? '\n\n%%B' + idx + '%%' : '%%B' + idx + '%%';
+  });
+
+  // 5. Horizontal rules
+  html = html.replace(/<p>(?:---|\*\*\*|___)\s*<\/p>/g, () => {
+    const idx = blocks.length;
+    blocks.push('<hr>');
+    return `%%B${idx}%%`;
+  });
+
+  // 6. Display math
+  html = html.replace(/\\\[([\s\S]*?)\\\]/g, (m, formula) => {
+    const idx = blocks.length;
+    blocks.push(`\\[${formula}\\]`);
+    return `%%B${idx}%%`;
+  });
+
+  // === Inline formatting (before newline processing) ===
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+  // === Newlines and paragraphs ===
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br>');
+
+  // === Line-start markers (after paragraph conversion) ===
+  html = html.replace(/<p>### (.+?)<\/p>/g, '<h3>$1</h3>');
+  html = html.replace(/<p>## (.+?)<\/p>/g, '<h2>$1</h2>');
+  html = html.replace(/<p># (.+?)<\/p>/g, '<h1>$1</h1>');
+
+  // Blockquotes
+  html = html.replace(/<p>&gt; (.+?)<\/p>/g, '<blockquote><p>$1</p></blockquote>');
+
+  // === Restore protected blocks ===
+  html = html.replace(/%%B(\d+)%%/g, (m, idx) => blocks[parseInt(idx)] || '');
+
   return `<p>${html}</p>`;
 }
 
