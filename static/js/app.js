@@ -458,6 +458,11 @@ function renderMessages() {
   });
 
   scrollToBottom();
+
+  // 数学公式渲染
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([els.messageList]).catch(() => {});
+  }
 }
 
 function handleRegenerate(conv, msgId) {
@@ -507,13 +512,29 @@ function forkWithText(text, convId) {
 function renderContent(text) {
   if (!text) return '';
   let html = escapeHtml(text);
+
+  // 先保护 \[...\] 显示公式块（可能跨多行），避免被 \n 处理破坏
+  const displayMathBlocks = [];
+  html = html.replace(/\\\[([\s\S]*?)\\\]/g, (m, formula) => {
+    const idx = displayMathBlocks.length;
+    displayMathBlocks.push(`\\[${formula}\\]`);
+    return `%%DISPLAYMATH_${idx}%%`;
+  });
+
   // Code blocks
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
     return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
   });
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br>');
+
+  // 恢复显示公式块
+  html = html.replace(/%%DISPLAYMATH_(\d+)%%/g, (m, idx) => {
+    return displayMathBlocks[parseInt(idx)] || '';
+  });
+
   return `<p>${html}</p>`;
 }
 

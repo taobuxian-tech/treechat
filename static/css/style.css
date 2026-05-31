@@ -1225,3 +1225,27 @@ ul.tree-diagram li:only-child::before {
     margin-left: -100%;
   }
 }
+
+/* ============================
+   MathJax - 数学公式渲染
+   ============================ */
+
+/* 行内公式：保持与文字对齐 */
+.message-content mjx-container[jax="CHTML"][display="false"] {
+  display: inline !important;
+}
+
+/* 显示公式：块级元素，上下留间距 */
+.message-content mjx-container[jax="CHTML"][display="true"] {
+  display: block !important;
+  margin: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .message-content mjx-container {
+    color: #e5e7eb;
+  }
+}
